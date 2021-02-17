@@ -20,3 +20,4 @@ autofs_indirect_maps: []
 #      - name: "isos" 
 #        fstype: "nfs,rw,bg,hard,intr,tcp,resvport"
 #        url: "nfs.server.com:/data/isos"
+#        state: "present"
