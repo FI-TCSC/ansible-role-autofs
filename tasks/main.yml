@@ -4,48 +4,76 @@
 
 # ----- Setup -----
 - name: "Setup | apt | ensure autofs's package(s) present"
-  apt: name="{{ item }}"
-  with_items: "{{ autofs_pkgs[ ansible_system ] }}"
+  apt:
+    state: present
+    name: "{{ packages }}"
+    update_cache: yes
+  vars:
+    packages: "{{ autofs_pkgs[ ansible_system ] }}"
   when: ansible_pkg_mgr == 'apt'
 
-
 - name: "Setup | yum | ensure autofs's package(s) present"
-  yum: name="{{ item }}"
-  with_items: "{{ autofs_pkgs[ ansible_system ] }}"
+  yum: name="{{ autofs_pkgs[ ansible_system ] }}"
   when: ansible_pkg_mgr == 'yum'
 
-
 - name: "Setup | zyp | ensure autofs's package(s) present"
-  zypper: name="{{ item }}"
-  with_items: "{{ autofs_pkgs[ ansible_system ] }}"
+  zypper: name="{{ autofs_pkgs[ ansible_system ] }}"
   when: ansible_pkg_mgr == 'zypper'
 
-
 - name: "Setup | dnf | ensure autofs's package(s) present"
-  dnf: name="{{ item }}"
-  with_items: "{{ autofs_pkgs[ ansible_system ] }}"
+  dnf: name="{{ autofs_pkgs[ ansible_system ] }}"
   when: ansible_pkg_mgr == 'dnf'
+
+- name: "Setup | pacman | ensure autofs's package(s) present"
+  pacman: name="{{ autofs_pkgs[ ansible_system ] }}"
+  when: ansible_pkg_mgr == 'pacman'
 
 
 # ----- Config -----
-- name: "Config| all | ensure indirect map paths(s) exist"
+- name: "Config | all | ensure indirect map paths(s) exist"
   file: path="{{ item.path }}" state=directory
   with_items: "{{ autofs_indirect_maps }}"
 
-
-- name: "Config| all | create indirect map file(s) from template"
+- name: "Config | all | create indirect map file(s) from template"
   template: src="indirect_map.j2" dest="/etc/{{ item.name }}" mode=0644
   with_items: "{{ autofs_indirect_maps }}"
   notify: [ 'restart autofs', 'reload autofs']
+  when: ansible_distribution != 'Archlinux'
 
-
-- name: "Config| all | add indirect map file(s) to autofs master file"
-  lineinfile: dest="{{ autofs_master[ ansible_system ] }}" state="{{ item.state | default ('present)' }}" line="{{ item.path }}    {{ item.name }} {{ item.options | default ("") }}"
+- name: "Config | Arch | create indirect map file(s) from template"
+  template: src="indirect_map.j2" dest="/etc/autofs/{{ item.name }}" mode=0644
   with_items: "{{ autofs_indirect_maps }}"
   notify: [ 'restart autofs', 'reload autofs']
+  when: ansible_distribution == 'Archlinux'
+
+- name: "Config | all | add indirect map file(s) to autofs master file"
+  blockinfile:
+    dest: "{{ autofs_master[ ansible_system ] }}"
+    state: "{{ item.state | default ('present') }}"
+    marker: "# {mark} MANAGED BY ANSIBLE : {{ item.mark | default (item.path + item.name) }}"
+    block: |
+      {{ item.path }}    {{ item.name }} {{ item.options | default ("") }}
+  with_items: "{{ autofs_indirect_maps }}"
+  notify: [ 'restart autofs', 'reload autofs']
+  when: ansible_distribution != 'Archlinux'
+
+- name: "Config | Arch | add indirect map file(s) to autofs master file"
+  blockinfile:
+    dest: "{{ autofs_master[ ansible_distribution ] }}"
+    state: "{{ item.state | default ('present') }}"
+    marker: "# {mark} MANAGED BY ANSIBLE : {{ item.mark | default (item.path + item.name) }}"
+    block: |
+      {{ item.path }}    {{ item.name }} {{ item.options | default ("") }}
+  with_items: "{{ autofs_indirect_maps }}"
+  notify: [ 'restart autofs', 'reload autofs']
+  when: ansible_distribution == 'Archlinux'
 
 
 # ----- Service -----
 - name: "Svc   |linux| ensure autofs starts at boot"
   service: name=autofs state=started enabled=yes
-  when: ansible_system == 'Linux'
+  when: ansible_system == 'Linux' and ansible_connection != 'chroot'
+
+- name: Enable autofs in chroot image
+  command: systemctl enable autofs
+  when: ansible_connection == 'chroot'

@@ -9,15 +9,17 @@ autofs_pkgs:
 # --- OS config ---
 autofs_master:
   Linux: "/etc/auto.master"
+  Archlinux: "/etc/autofs/auto.master"
   Darwin: "/etc/auto_master"
 
 # --- autofs config ---
 autofs_indirect_maps: []
 #  - name: autofs.nfs
 #    path: /mnt/nfs
-#    options: ""
+#    mark: "unique identifier for idempotency"
+#    options: "--timeout=30 --ghost"
 #    mounts:
-#      - name: "isos" 
+#      - name: "isos"
 #        fstype: "nfs,rw,bg,hard,intr,tcp,resvport"
 #        url: "nfs.server.com:/data/isos"
 #        state: "present"

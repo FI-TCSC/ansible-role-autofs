@@ -30,8 +30,10 @@ Role Variables
 autofs_indirect_maps:
   - name: autofs.nfs
     path: /mnt/nfs
+    mark: "unique identifier for idempotency"
+    options: "--timeout=30 --ghost"
     mounts:
-      - name: "isos" 
+      - name: "isos"
         fstype: "nfs,rw,bg,hard,intr,tcp,resvport"
         url: "nfs.server.com:/data/isos"
 
@@ -61,18 +63,31 @@ Example Playbook
   hosts: clients.media
   roles:
     - name: "Media Client | NFS | ensure automounts"
-      sudo: yes
+      become: true
+      become_method: sudo
       role: cmprescott.autofs
       autofs_indirect_maps:
-        - name: "auto.nfs" 
+
+        - name: "auto.nfs-nas"
           path: "/mnt/nfs"
-          mounts: 
-            - name: "movies" 
-              fstype: "nfs,rw,bg,hard,intr,tcp,resvport" 
+          mark: "nfs mounts from NAS"
+          options: "--timeout=30 --ghost"
+          mounts:
+            - name: "movies"
+              fstype: "nfs,rw,bg,hard,intr,tcp,resvport"
               url: "nfs.server.com:/data/movies"
             - name: "tv"
               fstype: "nfs,rw,bg,hard,intr,tcp,resvport"
               url: "nfs.server.com:/data/tv"
+
+        - name: "auto.nfs-other"
+          path: "/-"
+          mark: "NFS mount with root base"
+          options: "--timeout=30 --ghost"
+          mounts:
+            - name: "/var/remotedir"
+              fstype: "nfs,rw,bg,hard,intr,tcp,resvport"
+              url: "nfs.server.com:/data/remotedir"
 ```
 
 License
